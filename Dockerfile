@@ -40,6 +40,8 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 COPY . .
 
+RUN rm -f .env
+
 RUN composer install --no-interaction --prefer-dist --no-dev --optimize-autoloader --no-scripts \
     && npm ci \
     && npm run build \
