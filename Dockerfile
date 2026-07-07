@@ -44,7 +44,11 @@ RUN composer install --no-interaction --prefer-dist --no-dev --optimize-autoload
     && npm ci \
     && npm run build \
     && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/public \
-    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache \
+    && rm -f /var/www/html/bootstrap/cache/config.php \
+    && rm -f /var/www/html/bootstrap/cache/routes-v7.php \
+    && rm -f /var/www/html/bootstrap/cache/packages.php \
+    && rm -f /var/www/html/bootstrap/cache/services.php
 
 COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
