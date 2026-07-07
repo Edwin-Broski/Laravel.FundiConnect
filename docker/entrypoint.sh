@@ -5,6 +5,7 @@ if [ -n "$PORT" ]; then
   sed -i "s|listen 80;|listen ${PORT};|" /etc/nginx/conf.d/default.conf
 fi
 
+php artisan package:discover --ansi || true
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache

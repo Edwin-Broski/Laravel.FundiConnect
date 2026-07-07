@@ -29,18 +29,15 @@ RUN apt-get update \
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-COPY composer.json composer.lock* ./
-RUN composer install --no-interaction --prefer-dist --no-dev --optimize-autoloader
-
-COPY package.json package-lock.json* ./
-RUN npm install && npm run build
-
 COPY . .
 
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/public \
+RUN composer install --no-interaction --prefer-dist --no-dev --optimize-autoloader --no-scripts \
+    && npm install \
+    && npm run build \
+    && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/public \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf.template
+COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
