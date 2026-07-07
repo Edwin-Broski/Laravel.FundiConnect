@@ -20,11 +20,20 @@ RUN apt-get update \
         libxml2-dev \
         sqlite3 \
         libsqlite3-dev \
+        libpq-dev \
         nodejs \
         npm \
     && rm -rf /var/lib/apt/lists/* \
     && docker-php-ext-configure intl \
-    && docker-php-ext-install -j$(nproc) intl zip pdo_mysql pdo_sqlite bcmath opcache \
+    && docker-php-ext-install -j$(nproc) \
+        intl \
+        zip \
+        pdo_mysql \
+        pdo_sqlite \
+        pdo_pgsql \
+        pgsql \
+        bcmath \
+        opcache \
     && docker-php-ext-enable opcache
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -32,7 +41,7 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 COPY . .
 
 RUN composer install --no-interaction --prefer-dist --no-dev --optimize-autoloader --no-scripts \
-    && npm install \
+    && npm ci \
     && npm run build \
     && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/public \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
@@ -40,6 +49,7 @@ RUN composer install --no-interaction --prefer-dist --no-dev --optimize-autoload
 COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 EXPOSE 80
