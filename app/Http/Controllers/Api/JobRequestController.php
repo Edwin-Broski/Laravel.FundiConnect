@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\JobRequest;
 use Illuminate\Http\Request;
+use App\Models\JobApplication;
 
 class JobRequestController extends Controller
 {
@@ -12,18 +13,18 @@ class JobRequestController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'provider_id'      => 'required|exists:providers,id',
-            'trade_id'         => 'required|exists:trades,id',
-            'description'      => 'required|string',
+            'provider_id' => 'required|exists:providers,id',
+            'trade_id' => 'required|exists:trades,id',
+            'description' => 'required|string',
             'location_address' => 'nullable|string',
-            'location_area'    => 'nullable|string',
-            'scheduled_at'     => 'nullable|date',
+            'location_area' => 'nullable|string',
+            'scheduled_at' => 'nullable|date',
         ]);
 
         $job = JobRequest::create([
             ...$data,
             'customer_id' => $request->user()->id,
-            'status'      => 'pending',
+            'status' => 'pending',
         ]);
 
         return response()->json($job->load(['provider.user', 'trade']), 201);
@@ -33,9 +34,9 @@ class JobRequestController extends Controller
     public function customerJobs(Request $request)
     {
         $jobs = JobRequest::with(['provider.user', 'trade'])
-                          ->where('customer_id', $request->user()->id)
-                          ->latest()
-                          ->paginate(15);
+            ->where('customer_id', $request->user()->id)
+            ->latest()
+            ->paginate(15);
 
         return response()->json($jobs);
     }
@@ -71,7 +72,7 @@ class JobRequestController extends Controller
 
         $jobRequest->update([
             'customer_confirmed' => true,
-            'status'             => 'completed',
+            'status' => 'completed',
         ]);
 
         return response()->json(['message' => 'Job confirmed complete.']);
@@ -83,11 +84,106 @@ class JobRequestController extends Controller
         $provider = $request->user()->provider;
 
         $jobs = JobRequest::with(['customer', 'trade'])
-                          ->where('provider_id', $provider->id)
-                          ->latest()
-                          ->paginate(15);
+            ->where('provider_id', $provider->id)
+            ->latest()
+            ->paginate(15);
 
         return response()->json($jobs);
+    }
+
+    // customer posts open job without selecting a provider
+    public function storeOpen(Request $request)
+    {
+        $data = $request->validate([
+            'trade_id' => 'required|exists:trades,id',
+            'description' => 'required|string',
+            'location_address' => 'nullable|string',
+            'location_area' => 'nullable|string',
+            'scheduled_at' => 'nullable|date',
+        ]);
+
+        $job = JobRequest::create([
+            ...$data,
+            'customer_id' => $request->user()->id,
+            'provider_id' => null,
+            'status' => 'open',
+        ]);
+
+        return response()->json($job->load('trade'), 201);
+    }
+
+    // provider sees all open jobs matching their trades and area
+    public function openJobs(Request $request)
+    {
+        $provider = $request->user()->provider;
+        $tradeIds = $provider->trades->pluck('id');
+
+        $jobs = JobRequest::with(['customer', 'trade'])
+            ->whereNull('provider_id')
+            ->where('status', 'open')
+            ->whereIn('trade_id', $tradeIds)
+            ->latest()
+            ->paginate(15);
+
+        return response()->json($jobs);
+    }
+
+    // provider applies to an open job
+    public function apply(Request $request, JobRequest $jobRequest)
+    {
+        abort_if($jobRequest->status !== 'open', 422, 'Job is no longer open.');
+
+        $provider = $request->user()->provider;
+
+        $data = $request->validate([
+            'message' => 'nullable|string|max:500',
+        ]);
+
+        $existing = $jobRequest->applications()
+            ->where('provider_id', $provider->id)
+            ->exists();
+
+        abort_if($existing, 422, 'You have already applied to this job.');
+
+        $application = $jobRequest->applications()->create([
+            'provider_id' => $provider->id,
+            'message' => $data['message'] ?? null,
+            'status' => 'pending',
+        ]);
+
+        return response()->json($application->load('provider.user'), 201);
+    }
+
+    // customer views applications on their job
+    public function applications(Request $request, JobRequest $jobRequest)
+    {
+        abort_if($jobRequest->customer_id !== $request->user()->id, 403, 'Unauthorized.');
+
+        return response()->json(
+            $jobRequest->applications()->with('provider.user', 'provider.trades')->get()
+        );
+    }
+
+    // customer accepts a provider's application
+    public function acceptApplication(Request $request, JobRequest $jobRequest, JobApplication $application)
+    {
+        abort_if($jobRequest->customer_id !== $request->user()->id, 403, 'Unauthorized.');
+
+        // assign provider to job
+        $jobRequest->update([
+            'provider_id' => $application->provider_id,
+            'status' => 'accepted',
+        ]);
+
+        // decline all other applications
+        $jobRequest->applications()
+            ->where('id', '!=', $application->id)
+            ->update(['status' => 'declined']);
+
+        // accept this one
+        $application->update(['status' => 'accepted']);
+
+        return response()->json(['message' => 'Provider accepted successfully.']);
     }
 
     // provider - accept
@@ -143,9 +239,9 @@ class JobRequestController extends Controller
         }
 
         $jobRequest->update([
-            'status'             => 'completed',
+            'status' => 'completed',
             'provider_confirmed' => true,
-            'completion_photo'   => $path,
+            'completion_photo' => $path,
         ]);
 
         return response()->json(['message' => 'Job marked as completed.']);

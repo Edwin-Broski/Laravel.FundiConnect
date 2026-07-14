@@ -61,6 +61,11 @@ class JobRequest extends Model
         return $this->hasOne(Dispute::class);
     }
 
+    public function applications()
+{
+    return $this->hasMany(JobApplication::class);
+}
+
     // status helpers
     public function isPending(): bool    { return $this->status === 'pending'; }
     public function isAccepted(): bool   { return $this->status === 'accepted'; }
