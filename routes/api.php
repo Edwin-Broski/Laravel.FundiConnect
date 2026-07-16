@@ -26,6 +26,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
 
     // customer
+    Route::post('/jobs/open', [JobRequestController::class, 'storeOpen']);
     Route::post('/jobs', [JobRequestController::class, 'store']);
     Route::get('/jobs', [JobRequestController::class, 'customerJobs']);
     Route::get('/jobs/{jobRequest}', [JobRequestController::class, 'show']);
@@ -36,7 +37,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/jobs/{jobRequest}/messages', [MessageController::class, 'index']);
     Route::post('/jobs/{jobRequest}/messages', [MessageController::class, 'store']);
     // customer - post open job (no provider selected)
-    Route::post('/jobs/open', [JobRequestController::class, 'storeOpen']);
+    
 
     // customer - view applications on their job
     Route::get('/jobs/{jobRequest}/applications', [JobRequestController::class, 'applications']);
